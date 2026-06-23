@@ -13,6 +13,14 @@ import { Todo } from './types/Todo';
 import classNames from 'classnames';
 import { FilterType } from './types/FilterType';
 
+export enum ErrorMessage {
+  LOAD_TODOS = 'Unable to load todos',
+  ADD_TODO = 'Unable to add a todo',
+  DELETE_TODO = 'Unable to delete a todo',
+  UPDATE_TODO = 'Unable to update a todo',
+  EMPTY_TITLE = 'Title should not be empty',
+}
+
 export const App: React.FC = () => {
   const [todos, setTodos] = React.useState<Todo[]>([]);
   const [errorMessage, setErrorMessage] = React.useState('');
@@ -30,6 +38,7 @@ export const App: React.FC = () => {
         return true;
     }
   });
+
   const [query, setQuery] = React.useState('');
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [tempTodo, setTempTodo] = React.useState<Todo | null>(null);
@@ -45,7 +54,7 @@ export const App: React.FC = () => {
     getTodos()
       .then(setTodos)
       .catch(() => {
-        setErrorMessage('Unable to load todos');
+        setErrorMessage(ErrorMessage.LOAD_TODOS);
       })
       .finally(() => {
         setIsTodosLoading(false);
@@ -74,7 +83,7 @@ export const App: React.FC = () => {
     const trimmedTitle = query.trim();
 
     if (!trimmedTitle) {
-      setErrorMessage('Title should not be empty');
+      setErrorMessage(ErrorMessage.EMPTY_TITLE);
 
       return;
     }
@@ -99,7 +108,7 @@ export const App: React.FC = () => {
       setTodos(current => [...current, createdTodo]);
       setQuery('');
     } catch {
-      setErrorMessage('Unable to add a todo');
+      setErrorMessage(ErrorMessage.ADD_TODO);
     } finally {
       setTempTodo(null);
       setIsSubmitting(false);
@@ -120,7 +129,7 @@ export const App: React.FC = () => {
 
       setTodos(current => current.filter(todo => todo.id !== id));
     } catch {
-      setErrorMessage('Unable to delete a todo');
+      setErrorMessage(ErrorMessage.DELETE_TODO);
     } finally {
       setLoadingTodoIds(prev => prev.filter(todoId => todoId !== id));
 
@@ -139,7 +148,7 @@ export const App: React.FC = () => {
           setTodos(current => current.filter(t => t.id !== todo.id));
         })
         .catch(() => {
-          setErrorMessage('Unable to delete a todo');
+          setErrorMessage(ErrorMessage.DELETE_TODO);
         })
         .finally(() => {
           setLoadingTodoIds(prev => prev.filter(id => id !== todo.id));
@@ -163,7 +172,7 @@ export const App: React.FC = () => {
         current.map(t => (t.id === todo.id ? updatedTodo : t)),
       );
     } catch {
-      setErrorMessage('Unable to update a todo');
+      setErrorMessage(ErrorMessage.UPDATE_TODO);
     } finally {
       setLoadingTodoIds(prev => prev.filter(id => id !== todo.id));
     }
@@ -187,7 +196,7 @@ export const App: React.FC = () => {
             current.map(t => (t.id === todo.id ? updatedTodo : t)),
           );
         } catch {
-          setErrorMessage('Unable to update a todo');
+          setErrorMessage(ErrorMessage.UPDATE_TODO);
         } finally {
           setLoadingTodoIds(prev => prev.filter(id => id !== todo.id));
         }
@@ -223,7 +232,7 @@ export const App: React.FC = () => {
 
       setEditingTodoId(null);
     } catch {
-      setErrorMessage('Unable to update a todo');
+      setErrorMessage(ErrorMessage.UPDATE_TODO);
     } finally {
       setLoadingTodoIds(prev => prev.filter(id => id !== todo.id));
     }
@@ -232,6 +241,46 @@ export const App: React.FC = () => {
   if (!USER_ID) {
     return <UserWarning />;
   }
+
+  const handleRenameSubmit = (
+    event: React.FormEvent<HTMLFormElement>,
+    todo: Todo,
+  ) => {
+    event.preventDefault();
+    handleRename(todo);
+  };
+
+  const handleEditKeyUp = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Escape') {
+      setEditingTodoId(null);
+    }
+  };
+
+  const handleStartEditing = (todo: Todo) => {
+    setEditingTodoId(todo.id);
+    setEditingTitle(todo.title);
+  };
+
+  const FILTERS = [
+    {
+      label: 'All',
+      value: FilterType.All,
+      href: '#/',
+      dataCy: 'FilterLinkAll',
+    },
+    {
+      label: 'Active',
+      value: FilterType.Active,
+      href: '#/active',
+      dataCy: 'FilterLinkActive',
+    },
+    {
+      label: 'Completed',
+      value: FilterType.Completed,
+      href: '#/completed',
+      dataCy: 'FilterLinkCompleted',
+    },
+  ];
 
   return (
     <div className="todoapp">
@@ -288,12 +337,7 @@ export const App: React.FC = () => {
                 </label>
 
                 {editingTodoId === todo.id ? (
-                  <form
-                    onSubmit={e => {
-                      e.preventDefault();
-                      handleRename(todo);
-                    }}
-                  >
+                  <form onSubmit={e => handleRenameSubmit(e, todo)}>
                     <input
                       data-cy="TodoTitleField"
                       type="text"
@@ -301,11 +345,7 @@ export const App: React.FC = () => {
                       value={editingTitle}
                       onChange={e => setEditingTitle(e.target.value)}
                       onBlur={() => handleRename(todo)}
-                      onKeyUp={e => {
-                        if (e.key === 'Escape') {
-                          setEditingTodoId(null);
-                        }
-                      }}
+                      onKeyUp={handleEditKeyUp}
                       autoFocus
                     />
                   </form>
@@ -314,8 +354,7 @@ export const App: React.FC = () => {
                     data-cy="TodoTitle"
                     className="todo__title"
                     onDoubleClick={() => {
-                      setEditingTodoId(todo.id);
-                      setEditingTitle(todo.title);
+                      handleStartEditing(todo);
                     }}
                   >
                     {todo.title}
@@ -355,38 +394,19 @@ export const App: React.FC = () => {
             </span>
 
             <nav className="filter" data-cy="Filter">
-              <a
-                href="#/"
-                data-cy="FilterLinkAll"
-                className={classNames('filter__link', {
-                  selected: filter === FilterType.All,
-                })}
-                onClick={() => setFilter(FilterType.All)}
-              >
-                All
-              </a>
-
-              <a
-                href="#/active"
-                data-cy="FilterLinkActive"
-                className={classNames('filter__link', {
-                  selected: filter === FilterType.Active,
-                })}
-                onClick={() => setFilter(FilterType.Active)}
-              >
-                Active
-              </a>
-
-              <a
-                href="#/completed"
-                data-cy="FilterLinkCompleted"
-                className={classNames('filter__link', {
-                  selected: filter === FilterType.Completed,
-                })}
-                onClick={() => setFilter(FilterType.Completed)}
-              >
-                Completed
-              </a>
+              {FILTERS.map(({ label, value, href, dataCy }) => (
+                <a
+                  key={value}
+                  href={href}
+                  data-cy={dataCy}
+                  className={classNames('filter__link', {
+                    selected: filter === value,
+                  })}
+                  onClick={() => setFilter(value)}
+                >
+                  {label}
+                </a>
+              ))}
             </nav>
 
             <button
