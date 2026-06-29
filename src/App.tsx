@@ -12,6 +12,9 @@ import {
 import { Todo } from './types/Todo';
 import classNames from 'classnames';
 import { FilterType } from './types/FilterType';
+import { ErrorNotification } from './components/ErrorNotification';
+import { Header } from './components/Header';
+import { Footer } from './components/Footer';
 
 export enum ErrorMessage {
   LOAD_TODOS = 'Unable to load todos',
@@ -261,58 +264,21 @@ export const App: React.FC = () => {
     setEditingTitle(todo.title);
   };
 
-  const FILTERS = [
-    {
-      label: 'All',
-      value: FilterType.All,
-      href: '#/',
-      dataCy: 'FilterLinkAll',
-    },
-    {
-      label: 'Active',
-      value: FilterType.Active,
-      href: '#/active',
-      dataCy: 'FilterLinkActive',
-    },
-    {
-      label: 'Completed',
-      value: FilterType.Completed,
-      href: '#/completed',
-      dataCy: 'FilterLinkCompleted',
-    },
-  ];
-
   return (
     <div className="todoapp">
       <h1 className="todoapp__title">todos</h1>
 
       <div className="todoapp__content">
-        <header className="todoapp__header">
-          {todos.length > 0 && (
-            <button
-              type="button"
-              data-cy="ToggleAllButton"
-              onClick={handleToggleAll}
-              className={classNames('todoapp__toggle-all', {
-                active: activeTodos.length === 0,
-              })}
-            />
-          )}
-
-          {/* Add a todo on form submit */}
-          <form onSubmit={handleSubmit}>
-            <input
-              ref={inputRef}
-              data-cy="NewTodoField"
-              type="text"
-              className="todoapp__new-todo"
-              placeholder="What needs to be done?"
-              value={query}
-              onChange={event => setQuery(event.target.value)}
-              disabled={isSubmitting}
-            />
-          </form>
-        </header>
+        <Header
+          hasTodos={todos.length > 0}
+          allCompleted={activeTodos.length === 0}
+          query={query}
+          isSubmitting={isSubmitting}
+          inputRef={inputRef}
+          onSubmit={handleSubmit}
+          onQueryChange={setQuery}
+          onToggleAll={handleToggleAll}
+        />
 
         <section className="todoapp__main" data-cy="TodoList">
           {preparedTodos.map(todo => {
@@ -386,65 +352,21 @@ export const App: React.FC = () => {
           })}
         </section>
 
-        {/* Hide the footer if there are no todos */}
         {todos.length > 0 && (
-          <footer className="todoapp__footer" data-cy="Footer">
-            <span className="todo-count" data-cy="TodosCounter">
-              {activeTodos.length} items left
-            </span>
-
-            <nav className="filter" data-cy="Filter">
-              {FILTERS.map(({ label, value, href, dataCy }) => (
-                <a
-                  key={value}
-                  href={href}
-                  data-cy={dataCy}
-                  className={classNames('filter__link', {
-                    selected: filter === value,
-                  })}
-                  onClick={() => setFilter(value)}
-                >
-                  {label}
-                </a>
-              ))}
-            </nav>
-
-            <button
-              type="button"
-              className="todoapp__clear-completed"
-              data-cy="ClearCompletedButton"
-              disabled={completedTodos.length === 0}
-              onClick={handleClearCompleted}
-            >
-              Clear completed
-            </button>
-          </footer>
+          <Footer
+            activeCount={activeTodos.length}
+            completedCount={completedTodos.length}
+            filter={filter}
+            onFilterChange={setFilter}
+            onClearCompleted={handleClearCompleted}
+          />
         )}
       </div>
 
-      {/* DON'T use conditional rendering to hide the notification */}
-      {/* Add the 'hidden' class to hide the message smoothly */}
-      <div
-        data-cy="ErrorNotification"
-        className={classNames(
-          'notification',
-          'is-danger',
-          'is-light',
-          'has-text-weight-normal',
-          {
-            hidden: !errorMessage,
-          },
-        )}
-      >
-        <button
-          data-cy="HideErrorButton"
-          type="button"
-          className="delete"
-          onClick={() => setErrorMessage('')}
-        />
-        {/* show only one message at a time */}
-        {errorMessage}
-      </div>
+      <ErrorNotification
+        errorMessage={errorMessage}
+        onClose={() => setErrorMessage('')}
+      />
     </div>
   );
 };
